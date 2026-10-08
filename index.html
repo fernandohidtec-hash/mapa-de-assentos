@@ -182,6 +182,7 @@ label input,label select{font-weight:400;padding:11px 12px;border-radius:10px;bo
 <nav class="tabs" id="tabs">
   <button class="tab" data-a="tab" data-t="rotas">Rotas</button>
   <button class="tab" data-a="tab" data-t="clientes">Clientes</button>
+  <button class="tab" data-a="tab" data-t="vendedores">Vendedores</button>
 </nav>
 <div id="big"></div>
 <div id="sheet"></div>
@@ -200,12 +201,13 @@ label input,label select{font-weight:400;padding:11px 12px;border-radius:10px;bo
   function cheia(r){var v=vagasLista(r);return v>0&&paxList(r).length>=v}
   function isLista(r){return !!(r&&r.onibus&&r.onibus.modelo==='lista')}
   function paxList(r){var o=(r&&r.passageiros)||{};return Object.keys(o).filter(function(k){return o[k]&&o[k].cid}).map(function(k){return {k:k,cid:o[k].cid,vend:o[k].vend||'',t:o[k].t||0}}).sort(function(a,b){return a.t-b.t})}
+  function vendDe(cid){var c=cliente(cid);return c&&c.vendedor||''}
   async function addPax(cid,vend){
     var r=rota(),ex=paxList(r).filter(function(x){return x.cid===cid})[0];
     if(ex){if(vend&&vend!==ex.vend){var u0={};u0[ex.k]={vend:vend};await db.doc('rotas/'+r.id).update({passageiros:u0})}return {k:ex.k,vend:vend||ex.vend}}
-    var k='p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),u={};u[k]={cid:cid,vend:vend||'',t:Date.now()};
+    var k='p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),u={};u[k]={cid:cid,vend:vend||vendDe(cid),t:Date.now()};
     await db.doc('rotas/'+r.id).update({passageiros:u});
-    return {k:k,vend:vend||''};
+    return {k:k,vend:vend||vendDe(cid)};
   }
   function busLabel(r){if(isLista(r))return 'Viagem aérea · sem mapa';var o=r.onibus||{},m=MODELOS[o.modelo],n=o.nome||'';if(n==='PRAIA'&&o.modelo==='praia')n='';if(m&&n!==m.nome)return n?n+' · '+m.nome:m.nome;return n||'Ônibus'}
   function nomeRota(r){return String(r&&r.destino||r&&r.origem||'Sem nome')}
@@ -255,7 +257,20 @@ label input,label select{font-weight:400;padding:11px 12px;border-radius:10px;bo
     return h+'</div>';
   }
 
-  var VENDEDORES=[['Zé Maria','Zé'],['Leomar','Leo'],['Virginia','Vir'],['Anita','Ani'],['Rafael','Rafa'],['Darleni','Dar']];
+  var VENDEDORES_PADRAO=[['Zé Maria','Zé'],['Leomar','Leo'],['Virginia','Vir'],['Anita','Ani'],['Rafael','Rafa'],['Darlene','Dar'],['Fabricia','Fafa']];
+  var VENDEDORES=VENDEDORES_PADRAO.slice(), vendDocs=[];
+  function vendItem(v){return '<div class="cli"><div class="av">'+esc(initial(v.nome))+'</div><div class="info"><div class="nm">'+esc(v.nome)+'</div><div class="sub">Aparece no mapa como: '+esc(v.curto)+'</div></div><button class="btn danger small" data-a="excluir-vendedor" data-id="'+esc(v.id)+'">Excluir</button></div>'}
+  function viewVendedores(){
+    return '<div class="top"><div><div class="eyebrow">'+vendDocs.length+' cadastrados</div><h1>Vendedores</h1></div><button class="btn" data-a="novo-vendedor">Novo vendedor</button></div>'+
+      '<div class="meta" style="margin:0 0 12px">Estes nomes aparecem para escolher no assento, na lista de passageiros e no cadastro do cliente. Excluir um vendedor não apaga o nome dele de vendas já feitas.</div>'+
+      '<div class="list">'+(vendDocs.length?vendDocs.map(vendItem).join(''):'<div class="empty">Nenhum vendedor cadastrado.</div>')+'</div>';
+  }
+  async function saveVendedor(form){
+    var d=new FormData(form),nome=String(d.get('nome')||'').trim(),curto=String(d.get('curto')||'').trim()||nome.split(/\s+/)[0];
+    if(!nome)return;
+    if(VENDEDORES.some(function(v){return v[1].toLowerCase()===curto.toLowerCase()})){toast('Já existe um vendedor com o nome curto "'+curto+'".');return}
+    try{await db.collection('vendedores').doc().set({nome:nome,curto:curto,ordem:Date.now()});toast('Vendedor adicionado');closeSheet()}catch(e){fail(e)}
+  }
   var WHEEL='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M3.5 10.5 9.5 12M20.5 10.5 14.5 12M12 14.5V21"/></svg>';
   function seatHtml(r,n,a,cur,big){
     var cid=a[n],c=cid?cliente(cid):null,occ=!!cid,v=(r.vendedores||{})[n];
@@ -335,7 +350,7 @@ label input,label select{font-weight:400;padding:11px 12px;border-radius:10px;bo
     return [c.documento,c.rg,c.telefone].some(function(v){return String(v||'').toLowerCase().indexOf(q)>-1});
   }
   function cliItem(c){
-    var sub=[c.telefone,dadosLinha(c)].filter(Boolean).join(' · ');
+    var sub=[c.telefone,dadosLinha(c),c.vendedor?'Vend. '+c.vendedor:''].filter(Boolean).join(' · ');
     return '<div class="cli"><div class="av">'+esc(initial(c.nome))+'</div><div class="info"><div class="nm">'+esc(c.nome)+'</div>'+(sub?'<div class="sub">'+esc(sub)+'</div>':'')+'</div><button class="btn soft small" data-a="editar-cliente" data-id="'+esc(c.id)+'">Editar</button></div>';
   }
   function cliList(){
@@ -357,7 +372,7 @@ label input,label select{font-weight:400;padding:11px 12px;border-radius:10px;bo
     if(!ready.c||!ready.r){app.innerHTML='<div class="empty" style="margin-top:40px">Carregando…</div>';return}
     if(rotaId&&!rota())rotaId=null;
     var ae=document.activeElement,keep=ae&&ae.id==='cq',pos=keep?ae.selectionStart:0,keepLoc=ae&&ae.id==='loc'?ae.value:null;
-    app.innerHTML=tab==='clientes'?viewClientes():(rotaId?viewRota():viewRotas());
+    app.innerHTML=tab==='clientes'?viewClientes():(tab==='vendedores'?viewVendedores():(rotaId?viewRota():viewRotas()));
     if(keep&&$('#cq')){var e=$('#cq');e.focus();try{e.setSelectionRange(pos,pos)}catch(_){}}
     if(keepLoc!==null&&$('#loc')){var l=$('#loc');l.value=keepLoc;l.focus()}
     drawBig();
@@ -483,6 +498,7 @@ label input,label select{font-weight:400;padding:11px 12px;border-radius:10px;bo
         '<label for="f-nas">Data de nascimento<input id="f-nas" name="nascimento" type="date" value="'+esc(c2.nascimento)+'"></label></div>'+
         '<div class="two"><label for="f-doc">CPF<input id="f-doc" name="documento" inputmode="numeric" maxlength="30" value="'+esc(c2.documento)+'"></label>'+
         '<label for="f-rg">RG<input id="f-rg" name="rg" maxlength="30" value="'+esc(c2.rg)+'"></label></div>'+
+        '<label for="f-vd">Vendedor que atende (opcional)<select id="f-vd" name="vendedor"><option value="">Nenhum</option>'+VENDEDORES.map(function(v){return '<option value="'+esc(v[1])+'"'+(c2.vendedor===v[1]?' selected':'')+'>'+esc(v[0])+'</option>'}).join('')+(c2.vendedor&&!VENDEDORES.some(function(v){return v[1]===c2.vendedor})?'<option value="'+esc(c2.vendedor)+'" selected>'+esc(c2.vendedor)+'</option>':'')+'</select></label>'+
         '<button class="btn" type="submit">'+(s.seat?'Salvar e colocar no assento '+s.seat:(s.paxAdd?'Salvar e adicionar à lista':'Salvar'))+'</button>'+
         (s.id?'<button class="btn danger" type="button" data-a="excluir-cliente" data-id="'+esc(s.id)+'">Excluir cliente</button>':'')+
         '<button class="btn ghost" type="button" data-a="fechar">Cancelar</button></form>';
@@ -501,6 +517,8 @@ label input,label select{font-weight:400;padding:11px 12px;border-radius:10px;bo
         '<button class="btn" type="submit">Salvar rota</button>'+
         (s.id?'<button class="btn danger" type="button" data-a="excluir-rota">Excluir rota</button>':'')+
         '<button class="btn ghost" type="button" data-a="fechar">Cancelar</button></form>';
+    }else if(s.type==='vendedor'){
+      h='<h2>Novo vendedor</h2><form data-form="vendedor" class="list" style="gap:12px"><label for="f-vn">Nome do vendedor<input id="f-vn" name="nome" required maxlength="60" autocomplete="off"></label><label for="f-vc">Nome curto (aparece no mapa)<input id="f-vc" name="curto" maxlength="12" placeholder="Se deixar vazio, usa o primeiro nome" autocomplete="off"></label><button class="btn" type="submit">Salvar</button><button class="btn ghost" type="button" data-a="fechar">Cancelar</button></form>';
     }else if(s.type==='confirm'){
       h='<h2>'+esc(s.title)+'</h2><div class="meta" style="font-size:16px;margin:0">'+esc(s.text)+'</div><button class="btn danger" data-a="confirmar-sim">Sim, excluir</button><button class="btn ghost" data-a="fechar">Cancelar</button>';
     }
@@ -512,20 +530,21 @@ label input,label select{font-weight:400;padding:11px 12px;border-radius:10px;bo
   async function assign(seat,cid,vend){
     var r=rota(),a=r.assentos||{},v=r.vendedores||{},upd={},vu={};
     Object.keys(a).forEach(function(k){if(a[k]===cid&&k!==String(seat)){upd[k]='';vu[k]='';if(!vend)vend=v[k]||''}});
+    if(!vend)vend=vendDe(cid);
     upd[seat]=cid;vu[seat]=vend||'';
     await db.doc('rotas/'+r.id).update({assentos:upd,vendedores:vu});
     return vend||'';
   }
   async function saveCliente(form){
-    var d=new FormData(form),data={nome:String(d.get('nome')).trim(),telefone:String(d.get('telefone')||'').trim(),documento:String(d.get('documento')||'').trim(),rg:String(d.get('rg')||'').trim(),nascimento:String(d.get('nascimento')||'')};
+    var d=new FormData(form),data={nome:String(d.get('nome')).trim(),telefone:String(d.get('telefone')||'').trim(),documento:String(d.get('documento')||'').trim(),rg:String(d.get('rg')||'').trim(),nascimento:String(d.get('nascimento')||''),vendedor:String(d.get('vendedor')||'')};
     if(!data.nome)return;
     var s=sheet,id;
     try{
       if(s.id){await db.doc('clientes/'+s.id).update(data);id=s.id}
       else{var ref=db.collection('clientes').doc();data.criado=new Date().toISOString();await ref.set(data);id=ref.id}
       if(s.paxAdd&&rota()&&cheia(rota())){toast('Cliente salvo, mas a lista está completa.');closeSheet();return}
-      if(s.paxAdd&&rota()){var px=await addPax(id,s.vend);toast(short(data.nome)+' adicionado');openSheet({type:'pax',key:px.k,vend:px.vend});return}
-      if(s.seat&&rota()){var fv=await assign(s.seat,id,s.vend);toast(short(data.nome)+' no assento '+s.seat);render();openSheet({type:'seat',seat:s.seat,vend:fv,cid:id});return}
+      if(s.paxAdd&&rota()){var px=await addPax(id,s.vend||data.vendedor);toast(short(data.nome)+' adicionado');openSheet({type:'pax',key:px.k,vend:px.vend});return}
+      if(s.seat&&rota()){var fv=await assign(s.seat,id,s.vend||data.vendedor);toast(short(data.nome)+' no assento '+s.seat);render();openSheet({type:'seat',seat:s.seat,vend:fv,cid:id});return}
       else toast('Cliente salvo');
       closeSheet();
     }catch(e){fail(e)}
@@ -609,6 +628,8 @@ label input,label select{font-weight:400;padding:11px 12px;border-radius:10px;bo
     else if(a==='liberar'){db.doc('rotas/'+rotaId).update((function(){var o={},w={};o[el.dataset.seat]='';w[el.dataset.seat]='';return {assentos:o,vendedores:w}})()).then(function(){toast('Assento '+el.dataset.seat+' liberado');closeSheet()}).catch(fail)}
     else if(a==='pick'){assign(+el.dataset.seat,el.dataset.id,sheet.vend).then(function(v){var c=cliente(el.dataset.id);sheet.cid=el.dataset.id;sheet.vend=v;toast((c?short(c.nome):'Cliente')+' no assento '+el.dataset.seat);render();drawSheet();var bx=document.querySelector('#sheet .sheet');if(bx)bx.scrollTop=0}).catch(fail)}
     else if(a==='novo-cliente')openSheet({type:'cliente'});
+    else if(a==='novo-vendedor')openSheet({type:'vendedor'});
+    else if(a==='excluir-vendedor'){var vd=vendDocs.filter(function(x){return x.id===el.dataset.id})[0];if(!vd)return;openSheet({type:'confirm',title:'Excluir vendedor?',text:vd.nome+' sai da lista de escolha. Clientes e vendas que já usam esse nome continuam como estão.',yes:function(){db.doc('vendedores/'+vd.id).delete().then(function(){toast('Vendedor excluído');closeSheet()}).catch(fail)}})}
     else if(a==='novo-cliente-seat')openSheet({type:'cliente',seat:sheet.seat,vend:sheet.vend});
     else if(a==='editar-cliente')openSheet({type:'cliente',id:el.dataset.id});
     else if(a==='excluir-cliente'){var c=cliente(el.dataset.id);openSheet({type:'confirm',title:'Excluir cliente?',text:(c?c.nome:'Este cliente')+' será removido do cadastro e liberado de todos os assentos.',yes:function(){delCliente(el.dataset.id)}})}
@@ -623,7 +644,7 @@ label input,label select{font-weight:400;padding:11px 12px;border-radius:10px;bo
   });
   document.addEventListener('submit',function(ev){
     var f=ev.target.closest('form[data-form]');if(!f)return;ev.preventDefault();
-    if(f.dataset.form==='cliente')saveCliente(f);else saveRota(f);
+    if(f.dataset.form==='cliente')saveCliente(f);else if(f.dataset.form==='vendedor')saveVendedor(f);else saveRota(f);
   });
 
   /* ---------- dados ---------- */
@@ -632,6 +653,17 @@ label input,label select{font-weight:400;padding:11px 12px;border-radius:10px;bo
     try{db=window.claude&&await window.claude.use('db')}catch(e){db=null}
     if(!db){dbFail=true;render();return}
     db.collection('clientes').onSnapshot(function(s){clientes=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})}).sort(byName);ready.c=true;render()},function(){dbFail=true;render()});
+    db.collection('vendedores').onSnapshot(function(s){
+      var all=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});
+      if(!all.length){
+        if(s.metadata&&s.metadata.fromCache)return;
+        VENDEDORES_PADRAO.forEach(function(v,i){db.collection('vendedores').doc('v'+(i+1)).set({nome:v[0],curto:v[1],ordem:i+1}).catch(function(){})});
+        db.collection('vendedores').doc('_cfg').set({semeado:true}).catch(function(){});return;
+      }
+      vendDocs=all.filter(function(x){return x.id!=='_cfg'&&x.nome}).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
+      VENDEDORES=vendDocs.map(function(x){return [x.nome,x.curto||x.nome]});
+      if(ready.c&&ready.r&&!sheet)render();
+    },function(){});
     db.collection('rotas').onSnapshot(function(s){rotas=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})}).sort(function(a,b){return nomeRota(a).localeCompare(nomeRota(b),'pt-BR')});ready.r=true;render()},function(){dbFail=true;render()});
   })();
 })();
