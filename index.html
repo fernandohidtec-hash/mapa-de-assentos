@@ -257,7 +257,7 @@ label input,label select{font-weight:400;padding:11px 12px;border-radius:10px;bo
     return h+'</div>';
   }
 
-  var VENDEDORES_PADRAO=[['Zé Maria','Zé'],['Leomar','Leo'],['Virginia','Vir'],['Anita','Ani'],['Rafael','Rafa'],['Darlene','Dar'],['Fabricia','Fafa']];
+  var VENDEDORES_PADRAO=[['Zé Maria','Zé'],['Eliomar','Leo'],['Virginia','Vir'],['Anita','Ani'],['Rafael','Rafa'],['Darlene','Dar'],['Fabricia','Fafa']];
   var VENDEDORES=VENDEDORES_PADRAO.slice(), vendDocs=[];
   function vendItem(v){return '<div class="cli"><div class="av">'+esc(initial(v.nome))+'</div><div class="info"><div class="nm">'+esc(v.nome)+'</div><div class="sub">Aparece no mapa como: '+esc(v.curto)+'</div></div><button class="btn danger small" data-a="excluir-vendedor" data-id="'+esc(v.id)+'">Excluir</button></div>'}
   function viewVendedores(){
