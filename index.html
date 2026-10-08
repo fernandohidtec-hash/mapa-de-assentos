@@ -138,7 +138,7 @@ label input,label select{font-weight:400;padding:11px 12px;border-radius:10px;bo
 #login label{display:flex;flex-direction:column;gap:4px;font-size:14px}
 #login input{font:inherit;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
 #login .erro{color:#b3261e;font-size:14px;min-height:18px}
-#sair{position:fixed;top:8px;right:8px;z-index:50;font-size:12px;padding:4px 10px}
+#sair{display:block;margin:8px auto 96px;font-size:12px;padding:6px 14px}#sair[hidden]{display:none}
 </style>
 
 </head><body>
@@ -146,7 +146,6 @@ label input,label select{font-weight:400;padding:11px 12px;border-radius:10px;bo
 <label for="le">E-mail<input id="le" type="email" autocomplete="username" required></label>
 <label for="lp">Senha<input id="lp" type="password" autocomplete="current-password" required></label>
 <div class="erro" id="lerr"></div><button class="btn" type="submit" id="lbtn">Entrar</button></form></div>
-<button class="btn ghost small" id="sair" hidden>Sair</button>
 <script src="firebase-config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -170,15 +169,16 @@ label input,label select{font-weight:400;padding:11px 12px;border-radius:10px;bo
   var auth=firebase.auth(),fs=firebase.firestore();
   try{fs.enablePersistence({synchronizeTabs:true}).catch(function(){})}catch(e){}
   auth.onAuthStateChanged(function(u){
-    if(u){lg.hidden=true;$('#sair').hidden=false;resolveDb(mk(fs))}
-    else{lg.hidden=false;$('#sair').hidden=true}
+    if(u){lg.hidden=true;var sb=$('#sair');if(sb)sb.hidden=false;resolveDb(mk(fs))}
+    else{lg.hidden=false;var sb2=$('#sair');if(sb2)sb2.hidden=true}
   });
   $('#lform').addEventListener('submit',function(ev){ev.preventDefault();$('#lerr').textContent='';$('#lbtn').disabled=true;
     auth.signInWithEmailAndPassword($('#le').value.trim(),$('#lp').value).catch(function(e){$('#lerr').textContent=msg(e)}).then(function(){$('#lbtn').disabled=false})});
-  $('#sair').addEventListener('click',function(){auth.signOut().then(function(){location.reload()})});
+  document.addEventListener('click',function(e){if(!e.target||e.target.id!=='sair')return;if(!confirm('Sair da conta? Será preciso entrar de novo com e-mail e senha.'))return;auth.signOut().then(function(){location.reload()})});
 })();
 </script>
 <div class="wrap" id="app"></div>
+<button class="btn ghost small" id="sair" hidden>Sair da conta</button>
 <nav class="tabs" id="tabs">
   <button class="tab" data-a="tab" data-t="rotas">Rotas</button>
   <button class="tab" data-a="tab" data-t="clientes">Clientes</button>
